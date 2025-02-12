@@ -1,7 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 #[ink::contract]
-mod hotel_ink {    
+mod hotel_ink {
+    use ink::prelude::vec::Vec;
+    use ink::prelude::string::String;
+    use ink::storage::Mapping;
+    use ink::prelude::string::ToString;
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -10,10 +14,12 @@ mod hotel_ink {
     pub struct HotelInk {
         /// Stores a single `bool` value on the storage.
         value: bool,
+        guests: Mapping<u32, Guest>,
     }
 
     #[derive(scale::Encode, scale::Decode, Default, Clone, PartialEq, Debug)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout))]
+    #[allow(clippy::cast_possible_truncation)]
     pub enum PaymentMethod {
         #[default]
         Credit,
@@ -22,19 +28,19 @@ mod hotel_ink {
     }
     
     #[derive(scale::Encode, scale::Decode, Default, Clone, PartialEq, Debug)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout))]
     pub struct Guest {
-        id: u32,
-        name: String,
-        email: String,
-        payment: PaymentMethod
+        pub id: u32,
+        pub name: String,
+        pub email: String,
+        pub payment: PaymentMethod
     }
 
     impl HotelInk {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
         pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+            Self { value: init_value, guests: Mapping::new() }
         }
 
         /// Constructor that initializes the `bool` value to `false`.
@@ -59,18 +65,21 @@ mod hotel_ink {
             self.value
         }
 
+        #[ink(message)]
         pub fn add_guest(
+            &mut self,
             id: u32,
             name: String,
             email: String,
             payment: PaymentMethod
-            ) -> Guest {
-            Guest {
+            ) {
+            let new = Guest {
                 id,
                 name,
                 email,
                 payment
-            }
+            };
+            self.guests.insert(id, &new);   
         }
     }
 
