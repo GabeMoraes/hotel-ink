@@ -12,8 +12,7 @@ mod hotel_ink {
     /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct HotelInk {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
+        /// Mapping of guests
         guests: Mapping<u32, Guest>,
     }
 
@@ -39,32 +38,13 @@ mod hotel_ink {
     impl HotelInk {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value, guests: Mapping::new() }
-        }
-
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
         pub fn default() -> Self {
-            Self::new(Default::default())
+            Self {
+                guests: Mapping::new()
+            }
         }
 
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
-        #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-
+        /// Adds a guest to the `guests` mapping
         #[ink(message)]
         pub fn add_guest(
             &mut self,
@@ -81,6 +61,46 @@ mod hotel_ink {
             };
             self.guests.insert(id, &new);   
         }
+
+        #[ink(message)]
+        pub fn get_guest(&self, id: u32) -> Option<Guest> {
+            self.guests.get(id)
+        }
+
+        #[ink(message)]
+        pub fn update_guest(
+            &mut self,
+            id: u32,
+            new_id: Option<u32>,
+            name: Option<String>,
+            email: Option<String>,
+            payment: Option<PaymentMethod>
+            ) -> Result<bool, String> {
+            if let Some(mut guest) = self.guests.get(id) {
+                if let Some(new_id) = new_id {
+                    guest.id = new_id;
+                    self.guests.remove(id);
+                }
+
+                if let Some(name) = name {
+                    guest.name = name;
+                }
+
+                if let Some(email) = email {
+                    guest.email = email;
+                }
+
+                if let Some(payment) = payment {
+                    guest.payment = payment;
+                }
+
+                self.guests.insert(guest.id, &guest);
+
+                Ok(true)
+            } else {
+                Err("Guest not found".to_string())
+            }
+        }
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
@@ -90,22 +110,6 @@ mod hotel_ink {
     mod tests {
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let hotel_ink = HotelInk::default();
-            assert_eq!(hotel_ink.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut hotel_ink = HotelInk::new(false);
-            assert_eq!(hotel_ink.get(), false);
-            hotel_ink.flip();
-            assert_eq!(hotel_ink.get(), true);
-        }
     }
 
 
