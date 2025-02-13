@@ -101,6 +101,16 @@ mod hotel_ink {
                 Err("Guest not found".to_string())
             }
         }
+
+        #[ink(message)]
+        pub fn delete_guest(&mut self, id: u32) -> Result<bool, String> {
+            if let Some(_guest) = self.guests.get(id) {
+                self.guests.remove(id);
+                Ok(true)
+            } else {
+                Err("Guest not found".to_string())
+            }
+        }
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
