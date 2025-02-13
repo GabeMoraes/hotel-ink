@@ -6,6 +6,9 @@ mod hotel_ink {
     use ink::prelude::string::String;
     use ink::storage::Mapping;
     use ink::prelude::string::ToString;
+    use ink::env::block_timestamp;
+    use chrono::{DateTime, NaiveDateTime, Utc};
+    use num_traits::cast::ToPrimitive;
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -32,7 +35,8 @@ mod hotel_ink {
         pub id: u32,
         pub name: String,
         pub email: String,
-        pub payment: PaymentMethod
+        pub payment: PaymentMethod,
+        pub checkin: u64
     }
 
     impl HotelInk {
@@ -53,18 +57,23 @@ mod hotel_ink {
             email: String,
             payment: PaymentMethod
             ) {
+            let checkin = self.env().block_timestamp();
             let new = Guest {
                 id,
                 name,
                 email,
-                payment
+                payment,
+                checkin
             };
             self.guests.insert(id, &new);   
         }
 
         #[ink(message)]
-        pub fn get_guest(&self, id: u32) -> Option<Guest> {
-            self.guests.get(id)
+        pub fn get_guest(&self, id: u32) -> Option<(u32, String, String, PaymentMethod, String)> {
+            self.guests.get(id).map(|guest| {
+                let datetime = Self::convert_timestamp(guest.checkin);
+                (guest.id, guest.name, guest.email, guest.payment, datetime)
+            })
         }
 
         #[ink(message)]
@@ -110,6 +119,18 @@ mod hotel_ink {
             } else {
                 Err("Guest not found".to_string())
             }
+        }
+
+        /// Converte timestamp (u64) para string no formato ISO 8601
+        fn convert_timestamp(timestamp: u64) -> String {
+            // Converte u64 para i64 de forma segura, coloca pra s em vez de ms,
+            // bota o fuso BR
+            let timestamp_i64 = (timestamp/1000).to_i64().unwrap_or(0);
+            let timestamp_i64 = timestamp_i64.checked_sub(3 * 3600).unwrap_or(0);
+            let naive = NaiveDateTime::from_timestamp_opt(timestamp_i64, 0)
+                .unwrap_or(NaiveDateTime::from_timestamp(0, 0));
+            let datetime: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
+            datetime.to_rfc3339() // Retorna "YYYY-MM-DDTHH:MM:SS+00:00"
         }
     }
 
