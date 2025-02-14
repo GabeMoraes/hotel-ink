@@ -70,8 +70,16 @@ mod hotel_ink {
                 return Err("Room not available".to_string());
             }
 
-            if id <= 99999999 {
+            if id <= 99999999 || id > 999999999 {
                 return Err("Invalid RG".to_string());
+            }
+
+            if name.trim().is_empty() {
+                return Err("Empty name".to_string());
+            }
+
+            if email.trim().is_empty() {
+                return Err("Empty email!".to_string());
             }
             
             let checkin = self.env().block_timestamp();
@@ -90,10 +98,10 @@ mod hotel_ink {
         }
 
         #[ink(message)]
-        pub fn get_guest(&self, id: u32) -> Option<(u32, String, String, PaymentMethod, String)> {
+        pub fn get_guest(&self, id: u32) -> Option<(u32, String, String, PaymentMethod, String, u32)> {
             self.guests.get(id).map(|guest| {
                 let datetime = Self::convert_timestamp(guest.checkin);
-                (guest.id, guest.name, guest.email, guest.payment, datetime)
+                (guest.id, guest.name, guest.email, guest.payment, datetime, guest.room)
             })
         }
 
@@ -104,24 +112,47 @@ mod hotel_ink {
             new_id: Option<u32>,
             name: Option<String>,
             email: Option<String>,
-            payment: Option<PaymentMethod>
+            payment: Option<PaymentMethod>,
+            room: Option<u32>
             ) -> Result<bool, String> {
             if let Some(mut guest) = self.guests.get(id) {
                 if let Some(new_id) = new_id {
+                    if id <= 99999999 || id > 999999999 {
+                        return Err("Invalid RG".to_string());
+                    }
+
                     guest.id = new_id;
                     self.guests.remove(id);
                 }
 
                 if let Some(name) = name {
+                    if name.trim().is_empty() {
+                        return Err("Empty name".to_string());
+                    }
+
                     guest.name = name;
                 }
 
                 if let Some(email) = email {
+                    if email.trim().is_empty() {
+                        return Err("Empty email!".to_string());
+                    }
+
                     guest.email = email;
                 }
 
                 if let Some(payment) = payment {
                     guest.payment = payment;
+                }
+
+                if let Some(room) = room {
+                    if !self.rooms.contains(&room) {
+                        return Err("Room not available".to_string());
+                    }
+                    
+                    self.rooms.retain(|&r| r != room);
+                    self.rooms.push(guest.room);
+                    guest.room = room;
                 }
 
                 self.guests.insert(guest.id, &guest);
