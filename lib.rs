@@ -6,7 +6,6 @@ mod hotel_ink {
     use ink::prelude::string::String;
     use ink::storage::Mapping;
     use ink::prelude::string::ToString;
-    use ink::env::block_timestamp;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use num_traits::cast::ToPrimitive;
 
@@ -17,6 +16,7 @@ mod hotel_ink {
     pub struct HotelInk {
         /// Mapping of guests
         guests: Mapping<u32, Guest>,
+        rooms: Vec<u32>,
     }
 
     #[derive(scale::Encode, scale::Decode, Default, Clone, PartialEq, Debug)]
@@ -36,15 +36,23 @@ mod hotel_ink {
         pub name: String,
         pub email: String,
         pub payment: PaymentMethod,
-        pub checkin: u64
+        pub checkin: u64,
+        pub room: u32
     }
 
     impl HotelInk {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
         pub fn default() -> Self {
+            let mut rooms = Vec::new();
+
+            for room_number in 1..=20 {
+                rooms.push(room_number);
+            }
+
             Self {
-                guests: Mapping::new()
+                guests: Mapping::new(),
+                rooms: rooms
             }
         }
 
@@ -55,17 +63,30 @@ mod hotel_ink {
             id: u32,
             name: String,
             email: String,
-            payment: PaymentMethod
-            ) {
+            payment: PaymentMethod,
+            room: u32
+            ) -> Result<(), String> {
+            if !self.rooms.contains(&room) {
+                return Err("Room not available".to_string());
+            }
+
+            if id <= 99999999 {
+                return Err("Invalid RG".to_string());
+            }
+            
             let checkin = self.env().block_timestamp();
+
             let new = Guest {
                 id,
                 name,
                 email,
                 payment,
-                checkin
+                checkin,
+                room
             };
-            self.guests.insert(id, &new);   
+            self.guests.insert(id, &new);
+            self.rooms.retain(|&r| r != room);
+            return Ok(())
         }
 
         #[ink(message)]
@@ -131,6 +152,11 @@ mod hotel_ink {
                 .unwrap_or(NaiveDateTime::from_timestamp(0, 0));
             let datetime: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
             datetime.to_rfc3339() // Retorna "YYYY-MM-DDTHH:MM:SS+00:00"
+        }
+
+        #[ink(message)]
+        pub fn list_available_rooms(&self) -> Vec<u32> {
+            self.rooms.clone()
         }
     }
 
