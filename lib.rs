@@ -134,8 +134,9 @@ mod hotel_ink {
 
         #[ink(message)]
         pub fn delete_guest(&mut self, id: u32) -> Result<bool, String> {
-            if let Some(_guest) = self.guests.get(id) {
+            if let Some(guest) = self.guests.get(id) {
                 self.guests.remove(id);
+                self.rooms.push(guest.room);
                 Ok(true)
             } else {
                 Err("Guest not found".to_string())
